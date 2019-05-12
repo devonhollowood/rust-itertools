@@ -265,6 +265,44 @@ impl<I> Iterator for PutBack<I>
     }
 }
 
+#[derive(Debug)]
+/// An iterator adaptor that iterates over [`Result`]s. This passes on `Ok`
+/// values and stops at the first `Err` value, storing it in a given [`Result`].
+///
+/// See [`.put_err()`](../trait.Itertools.html#method.put_err) for more
+/// information.
+///
+/// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
+#[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
+pub struct PutErr<'a, I, T, U, E>
+    where I: Iterator<Item = Result<T, E>>
+{
+    inner: I,
+    dest: &'a mut Result<U, E>,
+}
+
+/// Create a new PutErr iterator, wrapping existing iterator `iter` and storing `Err`s in `dest`
+pub fn put_err<I, T, U, E>(iter: I, dest: &mut Result<U, E>) -> PutErr<I, T, U, E>
+    where I: Iterator<Item=Result<T, E>> {
+    PutErr { inner: iter, dest }
+}
+
+impl<'a, I, T, U, E> Iterator for PutErr<'a, I, T, U, E>
+    where I: Iterator<Item=Result<T, E>>
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.inner.next()? {
+            Ok(t) => Some(t),
+            Err(e) => {
+                *self.dest = Err(e);
+                None
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// An iterator adaptor that iterates over the cartesian product of
 /// the element sets of two iterators `I` and `J`.

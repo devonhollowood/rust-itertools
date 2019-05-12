@@ -86,6 +86,7 @@ pub mod structs {
         Batching,
         MapInto,
         MapResults,
+        PutErr,
         Merge,
         MergeBy,
         TakeWhileRef,
@@ -699,6 +700,37 @@ pub trait Itertools : Iterator {
               F: FnMut(T) -> U,
     {
         adaptors::map_results(self, f)
+    }
+
+    /// Return an iterator adaptor that passes on `Ok` values, and which stops
+    /// at the first `Err` value, storing it in `dest`. This is useful for
+    /// handling streams of [`Result`]s, by allowing for this style of error
+    /// management:
+    ///
+    /// [`Result`]: https://doc.rust-lang.org/std/result/enum.Result.html
+    ///
+    /// ```
+    /// use itertools::Itertools;
+    /// use std::convert::TryFrom;
+    /// use std::str::FromStr;
+    ///
+    /// let input = vec!["42", "2048", "bad parse", "3"];
+    /// let mut parse_err = Ok(());
+    /// let mut conversion_err = Ok(());
+    /// let sum: u8 = input.into_iter()
+    ///     .map(|text| text.parse::<usize>())
+    ///     .put_err(&mut parse_err)
+    ///     .map(|n| u8::try_from(n))
+    ///     .put_err(&mut conversion_err)
+    ///     .sum();
+    /// assert_eq!(parse_err, Ok(())); // never reached
+    /// assert!(conversion_err.is_err());
+    /// assert_eq!(sum, 42);
+    /// ```
+    fn put_err<T, U, E>(self, dest: &mut Result<U, E>) -> PutErr<Self, T, U, E>
+        where Self: Iterator<Item = Result<T, E>> + Sized,
+    {
+        adaptors::put_err(self, dest)
     }
 
     /// Return an iterator adaptor that merges the two base iterators in
